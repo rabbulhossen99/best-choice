@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams, useParams, useNavigate } from "react-router-dom";
 import {
   Baby,
@@ -9,22 +9,53 @@ import {
   PackageCheck,
   ShoppingBag,
   Check,
+  Truck,
+  ShieldCheck,
+  RotateCcw,
+  Headphones,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { track, useTracking } from "@/lib/tracking";
 import { money } from "@/lib/api";
-import type { Combo, Product, Section } from "@/lib/types";
+import type { Category, Combo, Product, Section } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { ProductCard, Empty } from "@/components/shared";
 import { cn } from "@/lib/utils";
 const icons = [Pill, Sparkles, HeartPulse, Leaf, Baby];
 export function Home() {
   const { catalog } = useStore();
+  const heroSections = catalog.sections
+    .filter((section) => section.type === "hero")
+    .flatMap((section) => [
+      section,
+      ...(section.banner2Image
+        ? [{
+            ...section,
+            id: section.id + "-banner-2",
+            image: section.banner2Image,
+            mobileImage: "",
+            title: section.banner2Heading || "",
+            subtitle: section.banner2Description || "",
+            buttonText: section.banner2ButtonText || "",
+            link: section.banner2RedirectUrl || "",
+          }]
+        : []),
+    ]);
+  const otherSections = catalog.sections.filter((section) => section.type !== "hero");
   return (
     <main id="top">
-      {catalog.sections.map((section) => (
+      {heroSections.length > 0 && <HeroCarousel sections={heroSections} />}
+      {otherSections.map((section) => (
         <HomeSection key={section.id} section={section} />
       ))}
+      <section aria-label="Shopping benefits" className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6">
+        <div className="grid grid-cols-2 gap-4 rounded-2xl bg-secondary/50 p-4 text-foreground sm:grid-cols-4 sm:p-6">
+          {[[Truck, "Fast Delivery"], [ShieldCheck, "Secure Payment"], [RotateCcw, "Easy Return"], [Headphones, "24/7 Support"]].map(([Icon, label]) => {
+            const BenefitIcon = Icon as typeof Truck;
+            return <div key={String(label)} className="flex items-center gap-3"><BenefitIcon size={26} /><span className="text-xs font-semibold sm:text-sm">{String(label)}</span></div>;
+          })}
+        </div>
+      </section>
       {!catalog.sections.length && (
         <Empty>
           No homepage sections have been published.{" "}
@@ -34,8 +65,82 @@ export function Home() {
     </main>
   );
 }
+function HeroCarousel({ sections }: { sections: Section[] }) {
+  const [index, setIndex] = useState(0);
+  const startX = useRef(0);
+  useEffect(() => {
+    if (sections.length < 2) return;
+    const timer = window.setInterval(() => setIndex((i) => (i + 1) % sections.length), 4500);
+    return () => window.clearInterval(timer);
+  }, [sections.length]);
+  return (
+    <section
+      className="mx-auto max-w-[1440px] px-4 py-3 sm:px-6 sm:py-5"
+      onTouchStart={(e) => { startX.current = e.touches[0].clientX; }}
+      onTouchEnd={(e) => {
+        const delta = e.changedTouches[0].clientX - startX.current;
+        if (Math.abs(delta) < 40 || sections.length < 2) return;
+        setIndex((i) => (i + (delta < 0 ? 1 : -1) + sections.length) % sections.length);
+      }}
+    >
+      <div className="relative overflow-hidden rounded-[2rem] bg-primary">
+        {sections.map((section, i) => (
+          <div
+            key={section.id}
+            className={cn(
+              "transition-opacity duration-700",
+              i === index ? "relative opacity-100" : "pointer-events-none absolute inset-0 opacity-0",
+            )}
+          >
+            <HeroBanner section={section} />
+          </div>
+        ))}
+        {sections.length > 1 && (
+          <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-2">
+            {sections.map((section, i) => (
+              <button
+                key={section.id}
+                aria-label={`Show banner ${i + 1}`}
+                onClick={() => setIndex(i)}
+                className={cn("size-2 rounded-full bg-white/50", i === index && "bg-white")}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="mx-auto mt-4 h-px max-w-6xl bg-border/60 sm:mt-6" aria-hidden="true" />
+    </section>
+  );
+}
+function HeroBanner({ section: s }: { section: Section }) {
+  const content = (
+    <>
+      <div className="absolute -right-12 -top-20 size-72 rounded-full bg-sun/80" />
+      <div className="absolute -bottom-20 right-32 size-48 rounded-full bg-coral/75" />
+      {s.image && (
+        <picture>
+          {s.mobileImage && <source media="(max-width: 767px)" srcSet={s.mobileImage} />}
+          <img src={s.image} alt="" className="absolute inset-0 size-full object-cover object-center" />
+        </picture>
+      )}
+      {(s.title || s.subtitle || s.buttonText) && (
+        <div className={cn("relative max-w-[58%] sm:max-w-2xl", s.image && "rounded-2xl bg-background/85 p-3 sm:p-5")}>
+          <span className="mb-3 inline-flex gap-2 rounded-full bg-foreground px-3 py-1.5 text-[10px] font-bold text-background sm:mb-5 sm:px-4 sm:py-2 sm:text-xs">
+            <Leaf size={16} />
+          </span>
+          {s.title && <h1 className="whitespace-pre-line font-display text-2xl font-bold leading-[1.05] sm:text-4xl lg:text-5xl">{s.title}</h1>}
+          {s.subtitle && <p className="mt-2 max-w-xl text-xs text-foreground/80 sm:mt-4 sm:text-base lg:text-lg">{s.subtitle}</p>}
+          {s.buttonText && <Button variant="shop" size="shop" className="mt-3 h-9 px-3 text-xs sm:mt-5 sm:h-11 sm:px-5 sm:text-sm"><ShoppingBag />{s.buttonText}</Button>}
+        </div>
+      )}
+    </>
+  );
+  const body = <div className="relative min-h-[220px] overflow-hidden px-4 py-5 sm:min-h-[340px] sm:px-10 sm:py-10 lg:min-h-[390px] lg:px-12">{content}</div>;
+  return s.link ? <Link to={s.link} className="block">{body}</Link> : body;
+}
 function HomeSection({ section: s }: { section: Section }) {
   const { catalog } = useStore();
+  const [showAllProducts, setShowAllProducts] = useState(false);
   if (s.type === "hero" || s.type === "promotion")
     return (
       <section className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 sm:py-10">
@@ -48,11 +153,14 @@ function HomeSection({ section: s }: { section: Section }) {
           <div className="absolute -right-12 -top-20 size-72 rounded-full bg-sun/80" />
           <div className="absolute -bottom-20 right-32 size-48 rounded-full bg-coral/75" />
           {s.image && (
-            <img
-              src={s.image}
-              alt=""
-              className="absolute inset-0 size-full object-cover"
-            />
+            <picture>
+              {s.mobileImage && <source media="(max-width: 767px)" srcSet={s.mobileImage} />}
+              <img
+                src={s.image}
+                alt=""
+                className="absolute inset-0 size-full object-contain"
+              />
+            </picture>
           )}
           <div
             className={cn(
@@ -95,15 +203,15 @@ function HomeSection({ section: s }: { section: Section }) {
     return (
       <section
         id="packages"
-        className="mx-auto max-w-[1440px] px-4 py-12 sm:px-6"
+        className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8"
       >
-        <div className="rounded-[2rem] bg-foreground p-6 sm:p-12">
-          <div className="mb-8 text-center text-background">
-            <h2 className="font-display text-3xl font-bold sm:text-4xl">
+          <div className="mb-5 text-center">
+            <h2 className="font-display text-2xl font-bold sm:text-3xl lg:text-4xl">
               {s.title}
             </h2>
-            <p className="mt-2 text-background/70">{s.subtitle}</p>
+            <p className="mt-2 text-sm text-muted-foreground sm:text-base">{s.subtitle}</p>
           </div>
+        <div className="rounded-[2rem] border border-border bg-card p-4 text-foreground shadow-sm sm:p-6">
           {products.slice(0, 3).map((p) => (
             <Packages key={p.id} product={p} />
           ))}
@@ -119,94 +227,160 @@ function HomeSection({ section: s }: { section: Section }) {
             ? "combo"
             : "deals"
       }
-      className="mx-auto max-w-[1440px] px-4 py-8 sm:px-6"
+      className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8"
     >
-      <h2 className="font-display text-3xl font-bold sm:text-4xl">{s.title}</h2>
-      <p className="mb-6 mt-2 text-muted-foreground">{s.subtitle}</p>
+      <h2 className="text-center font-display text-3xl font-bold sm:text-4xl">
+        {s.type === "categories" ? "Shop by Category" : s.title}
+      </h2>
+      <p className="mb-5 mt-2 text-center text-muted-foreground">
+        {s.type === "categories"
+          ? "Explore our collections and find products that fit your lifestyle."
+          : s.subtitle}
+      </p>
       {s.type === "categories" ? (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-          {catalog.categories
-            .filter((c) =>
+        <>
+          <CategoryCarousel
+            categories={catalog.categories.filter((c) =>
               s.categoryIds.length ? s.categoryIds.includes(c.id) : c.homepage,
-            )
-            .map((c, i) => {
-              const Icon = icons[i % icons.length];
-              return (
-                <Link
-                  to={"/category/" + c.slug}
-                  key={c.id}
-                  className="rounded-3xl border-2 bg-card p-6 text-center transition hover:-translate-y-1 hover:border-foreground"
-                >
-                  {c.image ? (
-                    <img
-                      src={c.image}
-                      alt=""
-                      className="mx-auto mb-4 size-16 rounded-2xl object-cover"
-                    />
-                  ) : (
-                    <span className="mx-auto mb-4 grid size-16 place-items-center rounded-2xl bg-primary/15 text-primary">
-                      <Icon size={32} />
-                    </span>
-                  )}
-                  <h3 className="font-display text-lg font-semibold">
-                    {c.name}
-                  </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {
-                      catalog.products.filter((p) => p.categoryId === c.id)
-                        .length
-                    }{" "}
-                    products
-                  </p>
-                </Link>
-              );
-            })}
-        </div>
+            )}
+            productCount={(id) =>
+              catalog.products.filter((p) => p.categoryId === id).length
+            }
+          />
+          <div className="mx-auto mt-5 h-px max-w-6xl bg-border/60 sm:mt-6" aria-hidden="true" />
+        </>
       ) : s.type === "combo" ? (
-        catalog.combos.map((c) => <ComboBuilder key={c.id} combo={c} />)
-      ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {products.map((p) => (
-            <ProductCard product={p} key={p.id} />
-          ))}
+        <div className="rounded-[2rem] border border-border bg-card p-4 text-foreground shadow-sm sm:p-6">
+          {catalog.combos.map((c) => <ComboBuilder key={c.id} combo={c} />)}
         </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">
+            {products.slice(0, s.type === "products" && !showAllProducts ? 8 : undefined).map((p) => (
+              <ProductCard product={p} key={p.id} />
+            ))}
+          </div>
+          {s.type === "products" && products.length > 8 && !showAllProducts && (
+            <div className="mt-6 text-center">
+              <Button variant="outline" className="rounded-full px-6" onClick={() => setShowAllProducts(true)}>
+                Show more
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </section>
   );
 }
+function CategoryCarousel({
+  categories,
+  productCount,
+}: {
+  categories: Category[];
+  productCount: (id: string) => number;
+}) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+  const startX = useRef(0);
+  const startScroll = useRef(0);
+  const looped = [...categories, ...categories];
+  useEffect(() => {
+    if (categories.length < 2) return;
+    const timer = window.setInterval(() => {
+      const el = scroller.current;
+      if (!el || dragging.current) return;
+      const card = el.querySelector<HTMLElement>("[data-category-card]");
+      el.scrollBy({ left: (card?.offsetWidth || 280) + 16, behavior: "smooth" });
+    }, 2800);
+    return () => window.clearInterval(timer);
+  }, [categories.length]);
+  const onScroll = () => {
+    const el = scroller.current;
+    if (el && el.scrollLeft >= el.scrollWidth / 2) el.scrollLeft -= el.scrollWidth / 2;
+  };
+  return (
+    <div
+      ref={scroller}
+      onScroll={onScroll}
+      onPointerDown={(e) => {
+        dragging.current = true;
+        startX.current = e.clientX;
+        startScroll.current = scroller.current?.scrollLeft || 0;
+      }}
+      onPointerMove={(e) => {
+        if (dragging.current && scroller.current)
+          scroller.current.scrollLeft = startScroll.current - (e.clientX - startX.current);
+      }}
+      onPointerUp={() => { dragging.current = false; }}
+      onPointerCancel={() => { dragging.current = false; }}
+      className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 [scrollbar-width:none] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden"
+    >
+      {looped.map((c, i) => {
+        const Icon = icons[i % icons.length];
+        return (
+          <Link
+            to={"/category/" + c.slug}
+            key={`${c.id}-${i}`}
+            data-category-card
+            className="flex min-w-0 basis-[23%] shrink-0 snap-start flex-col items-center justify-center gap-2 rounded-2xl border bg-card p-2 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-lg sm:basis-[18%] lg:basis-[11.5%]"
+          >
+            {c.image ? (
+              <img src={c.image} alt="" className="size-14 shrink-0 rounded-xl object-cover" />
+            ) : (
+              <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
+                <Icon size={30} />
+              </span>
+            )}
+            <div className="min-w-0">
+              <h3 className="font-display text-sm font-semibold leading-tight sm:text-base">{c.name}</h3>
+              <p className="text-xs text-muted-foreground">{productCount(c.id)} products</p>
+            </div>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
 function Packages({ product: p }: { product: Product }) {
-  const [selected, setSelected] = useState(p.variants[0]?.id),
+  const [selected, setSelected] = useState(
+      p.variants.find((variant) => /^1\s*pc$/i.test(variant.name.trim()))?.id ||
+        p.variants[0]?.id,
+    ),
     { add, notice } = useStore(),
     navigate = useNavigate(),
     [busy, setBusy] = useState(false);
   const chosen = p.variants.find((v) => v.id === selected);
   return (
-    <div className="mb-8">
-      <Link
-        to={"/product/" + p.slug}
-        className="mb-5 block text-center text-xl font-semibold text-background"
-      >
-        {p.name}
+    <div className="mb-6 grid gap-5 last:mb-0 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-center lg:gap-8">
+      <Link to={"/product/" + p.slug} className="mx-auto block w-full max-w-[220px] overflow-hidden rounded-2xl border border-border bg-background">
+        <img src={p.images[0]} alt={p.name} className="aspect-square w-full object-contain p-3" />
       </Link>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="min-w-0">
+        <Link
+          to={"/product/" + p.slug}
+          className="mb-3 block text-center text-lg font-semibold text-foreground sm:mb-5 sm:text-xl"
+        >
+          {p.name}
+        </Link>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {p.variants.map((v, i) => (
           <button
             key={v.id}
             onClick={() => setSelected(v.id)}
             disabled={!v.stock}
             className={cn(
-              "relative flex min-h-52 flex-col rounded-3xl p-6 text-left",
-              i === p.variants.length - 1 ? "bg-sun" : "bg-card",
-              selected === v.id && "ring-4 ring-primary",
+              "relative flex min-w-0 flex-col rounded-2xl p-3 text-left sm:p-4",
+              "bg-[#FAF7EF]",
+              selected === v.id && "border-primary bg-sun ring-2 ring-primary/30",
               !v.stock && "opacity-50",
             )}
           >
-            <span className="font-display font-semibold">{v.name}</span>
-            <span className="mt-3 text-3xl font-bold">{money(v.price)}</span>
-            <span className="mt-1 text-sm text-muted-foreground">
+            <span className="font-display text-sm font-semibold sm:text-base">{v.name}</span>
+            <span className="mt-1 text-xl font-bold sm:text-2xl">{money(v.price)}</span>
+            <span className="mt-1 text-[11px] text-muted-foreground sm:text-sm">
               {money(v.price / v.units)} / pc · {v.units} pcs
             </span>
-            <span className="mt-auto rounded-full bg-primary/15 py-2 text-center font-semibold">
+            <span className="mt-2 rounded-full bg-primary/15 py-1 text-center text-xs font-semibold">
               {!v.stock
                 ? "Out of stock"
                 : selected === v.id
@@ -215,12 +389,12 @@ function Packages({ product: p }: { product: Product }) {
             </span>
           </button>
         ))}
-      </div>
-      <div className="mt-6 text-center">
+        </div>
+        <div className="mt-4 text-center">
         <Button
           variant="buyNow"
           size="shop"
-          className="bg-[#F59E0B] text-white transition-colors duration-200 hover:bg-[#D97706] hover:text-white"
+          className="h-11 w-full rounded-full bg-[#F59E0B] px-5 py-2 text-sm text-white transition-colors duration-200 hover:bg-[#D97706] hover:text-white sm:w-auto sm:min-w-64"
           disabled={busy || !chosen?.stock}
           onClick={async () => {
             if (!chosen) return;
@@ -242,6 +416,7 @@ function Packages({ product: p }: { product: Product }) {
         >
           Buy Now - {chosen?.name || "Package"}
         </Button>
+        </div>
       </div>
     </div>
   );
@@ -254,10 +429,10 @@ function ComboBuilder({ combo }: { combo: Combo }) {
     [busy, setBusy] = useState(false);
   const tier = combo.tiers.find((t) => t.count === count);
   return (
-    <div className="mb-6 rounded-[2rem] border-2 bg-card p-5 sm:p-8">
-      <h3 className="text-2xl font-bold">{combo.name}</h3>
-      <p className="mt-2 text-muted-foreground">{combo.description}</p>
-      <div className="my-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="mb-4 last:mb-0">
+      <h3 className="text-center text-lg font-bold sm:text-xl">{combo.name}</h3>
+      <p className="mt-1 text-center text-xs text-muted-foreground sm:text-sm">Choose your everyday essentials</p>
+      <div className="my-4 grid grid-cols-4 gap-2 sm:gap-3">
         {combo.tiers.map((t) => (
           <button
             key={t.count}
@@ -266,21 +441,23 @@ function ComboBuilder({ combo }: { combo: Combo }) {
               setSelected([]);
             }}
             className={cn(
-              "rounded-2xl border-2 p-4 text-left",
-              count === t.count ? "border-foreground bg-sun" : "bg-background",
+              "min-w-0 rounded-2xl border-2 p-2 text-left text-foreground sm:p-3",
+              count === t.count
+                ? "border-foreground bg-sun"
+                : "border-border bg-[#FAF7EF]",
             )}
           >
-            <span className="block font-semibold">
+            <span className="block truncate text-xs font-semibold sm:text-sm">
               {t.count} {t.count === 1 ? "Product" : "Products"}
             </span>
-            <span className="text-2xl font-bold">{money(t.price)}</span>
+            <span className="text-sm font-bold sm:text-xl">{money(t.price)}</span>
           </button>
         ))}
       </div>
-      <p className="mb-4 font-semibold">
+      <p className="mb-3 text-sm font-semibold text-foreground">
         Selected: {selected.length} / {count}
       </p>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-4 gap-2 sm:gap-3">
         {catalog.products
           .filter((p) => combo.productIds.includes(p.id))
           .map((p) => {
@@ -299,7 +476,7 @@ function ComboBuilder({ combo }: { combo: Combo }) {
                   )
                 }
                 className={cn(
-                  "overflow-hidden rounded-3xl border-2 text-left disabled:opacity-40",
+                  "min-w-0 overflow-hidden rounded-2xl border-2 bg-background text-left text-foreground shadow-sm disabled:opacity-40",
                   active ? "border-foreground bg-primary/10" : "border-border",
                 )}
               >
@@ -307,22 +484,22 @@ function ComboBuilder({ combo }: { combo: Combo }) {
                   <img
                     src={p.images[0]}
                     alt=""
-                    className="aspect-[5/4] w-full object-cover"
+                    className="aspect-square w-full bg-muted/20 object-contain p-1 sm:p-2"
                   />
                   {active && (
                     <Check className="absolute right-2 top-2 rounded-full bg-primary p-1" />
                   )}
                 </div>
-                <div className="p-4 font-semibold">{p.name}</div>
+                <div className="line-clamp-2 p-1.5 text-[10px] font-semibold leading-tight sm:p-2 sm:text-xs">{p.name}</div>
               </button>
             );
           })}
       </div>
-      <div className="mt-7 flex justify-center">
+      <div className="mt-4 flex justify-center">
       <Button
         variant="buyNow"
         size="shop"
-        className="min-w-44"
+        className="h-10 w-full min-w-44 rounded-full px-5 text-sm text-white sm:w-auto"
         disabled={busy || !tier}
         onClick={async () => {
           if (selected.length !== count) {
@@ -436,7 +613,7 @@ export function Shop() {
         {products.length} products
       </p>
       {products.length ? (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">
           {products.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}

@@ -1,8 +1,7 @@
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import { useState, type ReactNode } from "react";
-import { Menu, Search, ShoppingBag, X } from "lucide-react";
+import { Menu, Search, ShoppingBag, X, Home as HomeIcon, Grid2X2, UserRound } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { setConsent, useTracking } from "@/lib/tracking";
 import { money } from "@/lib/api";
 import type { Product } from "@/lib/types";
 import { Button } from "./ui/button";
@@ -12,10 +11,6 @@ export function StoreLayout() {
     [query, setQuery] = useState(""),
     navigate = useNavigate();
   const settings = catalog.settings;
-  const [noticed, setNoticed] = useState(
-      () => localStorage.getItem("essential-notice") === "1",
-    ),
-    tracking = useTracking();
   return (
     <div className="min-h-screen bg-background text-foreground">
       {settings.announcement && (
@@ -24,11 +19,11 @@ export function StoreLayout() {
         </div>
       )}
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-[1440px] items-center gap-4 px-4 py-4 sm:px-6">
+        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-3 px-4 py-3 sm:px-6 lg:gap-5">
           <Link to="/" className="shrink-0 font-display text-2xl font-bold">
             {settings.name}
           </Link>
-          <nav className="hidden gap-5 text-sm font-semibold lg:flex">
+          <nav className="order-last hidden w-full items-center gap-6 border-t border-border/50 pt-3 text-sm font-semibold lg:flex">
             <Link to="/shop">Shop</Link>
             <Link to="/#category">Categories</Link>
             <Link to="/#packages">Packages</Link>
@@ -92,7 +87,14 @@ export function StoreLayout() {
         )}
       </header>
       <Outlet />
-      <footer className="mt-12 bg-foreground text-background">
+      <nav aria-label="Mobile shopping navigation" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-card px-2 py-2 text-[10px] font-medium shadow-sm md:hidden">
+        <Link to="/" className="flex flex-col items-center gap-1"><HomeIcon size={20} />Home</Link>
+        <Link to="/#category" className="flex flex-col items-center gap-1"><Grid2X2 size={20} />Categories</Link>
+        <Link to="/shop" className="flex flex-col items-center gap-1"><Search size={20} />Search</Link>
+        <Link to="/cart" className="flex flex-col items-center gap-1"><ShoppingBag size={20} />Cart</Link>
+        <Link to={user ? "/account" : "/login"} className="flex flex-col items-center gap-1"><UserRound size={20} />Account</Link>
+      </nav>
+      <footer className="mt-6 bg-foreground pb-16 text-background md:pb-0">
         <div className="mx-auto grid max-w-[1440px] gap-8 px-6 py-12 md:grid-cols-4">
           <div>
             <h2 className="font-display text-2xl font-bold">{settings.name}</h2>
@@ -124,15 +126,6 @@ export function StoreLayout() {
               </Link>
             ))}
             <Link to="/track">Track order</Link>
-            {tracking.needsConsent && tracking.consent && (
-              <button
-                type="button"
-                className="mt-2 block text-sm text-background/70"
-                onClick={() => setConsent(null)}
-              >
-                Cookie preferences
-              </button>
-            )}
           </div>
           <div>
             <h3 className="mb-3 font-bold">Payment</h3>
@@ -147,50 +140,6 @@ export function StoreLayout() {
           © {new Date().getFullYear()} {settings.name}
         </p>
       </footer>
-      {tracking.needsConsent && !tracking.consent ? (
-        <div className="fixed bottom-3 left-3 z-50 max-w-sm rounded-2xl border bg-card p-4 text-sm shadow-lg">
-          <p>
-            We use essential cookies for your cart and sign-in. With your
-            permission, we also use the Meta Pixel to measure our advertising.
-          </p>
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-            <Link to="/policy/privacy" className="underline">
-              Privacy policy
-            </Link>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setConsent("denied")}>
-                Essential only
-              </Button>
-              <Button onClick={() => setConsent("granted")}>Accept</Button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        settings.cookieBanner &&
-        !noticed &&
-        !tracking.needsConsent && (
-          <div className="fixed bottom-3 left-3 z-50 max-w-sm rounded-2xl border bg-card p-4 text-sm shadow-lg">
-            <p>
-              {tracking.pixel
-                ? "We use cookies for your cart and sign-in, and the Meta Pixel to measure our advertising."
-                : "We use essential cookies for your cart and sign-in. No advertising trackers are loaded."}
-            </p>
-            <div className="mt-3 flex items-center justify-between">
-              <Link to="/policy/privacy" className="underline">
-                Privacy policy
-              </Link>
-              <Button
-                onClick={() => {
-                  localStorage.setItem("essential-notice", "1");
-                  setNoticed(true);
-                }}
-              >
-                Got it
-              </Button>
-            </div>
-          </div>
-        )
-      )}
     </div>
   );
 }
@@ -202,44 +151,44 @@ export function ProductCard({ product }: { product: Product }) {
   if (!v) return null;
   const category = catalog.categories.find((c) => c.id === product.categoryId);
   return (
-    <article className="overflow-hidden rounded-3xl border-2 border-border bg-card">
+    <article className="flex h-full flex-col overflow-hidden rounded-3xl border-2 border-border bg-card shadow-sm">
       <Link to={"/product/" + product.slug} className="relative block">
         <img
           src={product.images[0]}
           alt={product.name}
           loading="lazy"
-          className="aspect-[5/4] w-full object-cover"
+          className="aspect-square w-full bg-muted/20 object-contain p-2 sm:p-3"
         />
         {v.compareAt && v.compareAt > v.price ? (
-          <span className="absolute left-3 top-3 rounded-full bg-coral px-3 py-1 text-xs font-bold text-white">
+          <span className="absolute left-2 top-2 rounded-full bg-coral px-2 py-1 text-[10px] font-bold text-white sm:left-3 sm:top-3 sm:px-3 sm:text-xs">
             −{Math.round((1 - v.price / v.compareAt) * 100)}%
           </span>
         ) : null}
       </Link>
-      <div className="p-5">
+      <div className="flex flex-1 flex-col p-3 sm:p-4">
         <Link
           to={"/category/" + category?.slug}
-          className="text-xs font-bold uppercase text-primary"
+          className="text-[10px] font-bold uppercase text-primary sm:text-xs"
         >
           {category?.name}
         </Link>
-        <h3 className="mt-1 font-display text-lg font-semibold">
+        <h3 className="mt-1 line-clamp-2 font-display text-base font-semibold leading-tight sm:text-lg">
           <Link to={"/product/" + product.slug}>{product.name}</Link>
         </h3>
-        <p className="mt-1 text-sm text-muted-foreground">{product.detail}</p>
-        <div className="mt-3 flex items-center gap-2">
-          <span className="text-xl font-bold">{money(v.price)}</span>
+        <p className="mt-1 line-clamp-1 text-xs text-muted-foreground sm:text-sm">{product.detail}</p>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:mt-3 sm:gap-2">
+          <span className="text-lg font-bold sm:text-xl">{money(v.price)}</span>
           {v.compareAt && (
             <span className="text-sm text-muted-foreground line-through">
               {money(v.compareAt)}
             </span>
           )}
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="mt-auto grid grid-cols-2 gap-1.5 pt-3 sm:gap-2 sm:pt-4">
           <Button
             variant="shop"
             size="sm"
-            className="h-11 w-full px-2 text-xs sm:px-3 sm:text-sm"
+            className="h-9 w-full rounded-xl px-1 text-[10px] sm:h-10 sm:px-2 sm:text-xs"
             disabled={busy || !v.stock}
             onClick={async () => {
               setBusy(true);
@@ -262,7 +211,7 @@ export function ProductCard({ product }: { product: Product }) {
           <Button
             variant="buyNow"
             size="sm"
-            className="h-11 w-full border-0 bg-[#F59E0B] px-2 text-xs font-medium text-white transition-colors duration-200 hover:bg-[#D97706] hover:text-white sm:px-3 sm:text-sm"
+            className="h-9 w-full rounded-xl border-0 bg-[#F59E0B] px-1 text-[10px] font-medium text-white transition-colors duration-200 hover:bg-[#D97706] hover:text-white sm:h-10 sm:px-2 sm:text-xs"
             disabled={busy || !v.stock}
             onClick={async () => {
               setBusy(true);
