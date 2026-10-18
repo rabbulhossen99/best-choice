@@ -114,7 +114,6 @@ function HeroCarousel({ sections }: { sections: Section[] }) {
   );
 }
 function HeroBanner({ section: s }: { section: Section }) {
-  const subtitle = s.subtitle?.trim() || DEFAULT_HERO_SUBTITLE;
   const content = (
     <>
       <div className="absolute -right-12 -top-20 size-72 rounded-full bg-sun/80" />
@@ -125,13 +124,12 @@ function HeroBanner({ section: s }: { section: Section }) {
           <img src={s.image} alt="" className="absolute inset-0 size-full object-cover object-center" />
         </picture>
       )}
-      {(s.title || subtitle || s.buttonText) && (
+      {(s.title || s.buttonText) && (
         <div className={cn("relative max-w-[58%] sm:max-w-2xl", s.image && "rounded-2xl bg-background/85 p-3 sm:p-5")}>
           <span className="mb-3 inline-flex gap-2 rounded-full bg-foreground px-3 py-1.5 text-[10px] font-bold text-background sm:mb-5 sm:px-4 sm:py-2 sm:text-xs">
             <Leaf size={16} />
           </span>
           {s.title && <h1 className="whitespace-pre-line font-display text-2xl font-bold leading-[1.05] sm:text-4xl lg:text-5xl">{s.title}</h1>}
-          {subtitle && <p className="mt-2 max-w-xl text-xs text-foreground/80 sm:mt-4 sm:text-base lg:text-lg">{subtitle}</p>}
           {s.buttonText && <Button variant="shop" size="shop" className="mt-3 h-9 px-3 text-xs sm:mt-5 sm:h-11 sm:px-5 sm:text-sm"><ShoppingBag />{s.buttonText}</Button>}
         </div>
       )}
@@ -177,9 +175,11 @@ function HomeSection({ section: s }: { section: Section }) {
             <h1 className="whitespace-pre-line font-display text-4xl font-bold leading-tight sm:text-6xl lg:text-7xl">
               {s.title}
             </h1>
-            <p className="mt-5 max-w-xl text-lg text-foreground/80">
-              {subtitle}
-            </p>
+            {s.type !== "hero" && (
+              <p className="mt-5 max-w-xl text-lg text-foreground/80">
+                {subtitle}
+              </p>
+            )}
             <div className="mt-8 flex flex-wrap gap-3">
               <Button variant="shop" size="shop" asChild>
                 <Link to={s.link}>
