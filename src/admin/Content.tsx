@@ -207,6 +207,7 @@ export function Content({ kind }: { kind: string }) {
   const { data, error, reload } = useResource<any[]>("/admin/content/" + kind),
     [editing, setEditing] = useState<any | null>(null),
     [remove, setRemove] = useState<string | null>(null),
+    [references, setReferences] = useState<Record<string, any[]> | null>(null),
     { notice, refresh } = useStore();
   const config = configs[kind];
   if (!config) return null;
@@ -280,6 +281,18 @@ export function Content({ kind }: { kind: string }) {
               <Button variant="outline" onClick={() => setEditing(row)}>
                 Edit
               </Button>
+              {kind !== "settings" && (row.active !== undefined || kind === "products") && <Button variant="outline" onClick={async () => {
+                await api(`/admin/content/${kind}/${row.id}/archive`, "POST");
+                await reload(); await refresh(); notice("Record archived");
+              }}>Archive</Button>}
+              <Button variant="ghost" onClick={async () => {
+                const result = await api<{ references: any[] }>(`/admin/content/${kind}/${row.id}/references`);
+                setReferences({ [row.id]: result.references });
+              }}>View references</Button>
+              {(references?.[row.id] || []).length > 0 && <div className="w-full rounded-lg bg-muted p-3 text-xs">
+                {(references?.[row.id] || []).map((ref) => <div key={ref.type}>{ref.description}: {ref.count}</div>)}
+                <div className="mt-1 text-muted-foreground">Historical orders and payments are retained.</div>
+              </div>}
               {remove === row.id && kind === "categories" ? (
                 <CategoryDelete
                   category={row}
@@ -595,3 +608,4 @@ function ContentEditor({
     </form>
   );
 }
+

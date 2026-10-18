@@ -14,7 +14,7 @@ export function openDatabase(
     CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE COLLATE NOCASE, name TEXT NOT NULL, password TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('customer','admin')), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id) ON DELETE CASCADE, csrf TEXT NOT NULL, expires INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS categories (id TEXT PRIMARY KEY, parent_id TEXT REFERENCES categories(id) ON DELETE RESTRICT, data TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1);
-    CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, category_id TEXT REFERENCES categories(id) ON DELETE RESTRICT, data TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1);
+    CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, category_id TEXT REFERENCES categories(id) ON DELETE RESTRICT, data TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS content (kind TEXT NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(kind,id));
     CREATE TABLE IF NOT EXISTS carts (session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE, data TEXT NOT NULL DEFAULT '[]');
     CREATE TABLE IF NOT EXISTS checkouts (id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE, data TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'incomplete', updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
@@ -30,6 +30,9 @@ export function openDatabase(
     CREATE INDEX IF NOT EXISTS order_user ON orders(user_id);
     INSERT OR IGNORE INTO migrations(version) VALUES(1);
   `);
+  for (const column of ["created_at", "updated_at"])
+    try { db.exec(`ALTER TABLE products ADD COLUMN ${column} TEXT`); } catch {}
+  db.exec("UPDATE products SET created_at=COALESCE(created_at,CURRENT_TIMESTAMP), updated_at=COALESCE(updated_at,created_at,CURRENT_TIMESTAMP)");
   // An earlier category delete cleared these columns without updating the
   // records; restore them from the stored data so the references are enforced.
   db.exec(`
@@ -56,17 +59,14 @@ export const decode = (row) =>
   row ? { ...JSON.parse(row.data), id: row.id, version: row.version } : null;
 export function records(db, kind) {
   return kind === "products" || kind === "categories"
-    ? db.prepare(`SELECT * FROM ${kind}`).all().map(decode)
+    ? db.prepare(kind === "products" ? `SELECT * FROM products ORDER BY updated_at DESC, created_at DESC, id ASC` : `SELECT * FROM categories`).all().map((row) => ({ ...decode(row), ...(kind === "products" ? { createdAt: row.created_at, updatedAt: row.updated_at } : {}) }))
     : db.prepare("SELECT * FROM content WHERE kind=?").all(kind).map(decode);
 }
 export function record(db, kind, key) {
-  return decode(
-    kind === "products" || kind === "categories"
-      ? db.prepare(`SELECT * FROM ${kind} WHERE id=?`).get(key)
-      : db
-          .prepare("SELECT * FROM content WHERE kind=? AND id=?")
-          .get(kind, key),
-  );
+  const row = kind === "products" || kind === "categories"
+    ? db.prepare(`SELECT * FROM ${kind} WHERE id=?`).get(key)
+    : db.prepare("SELECT * FROM content WHERE kind=? AND id=?").get(kind, key);
+  return row ? { ...decode(row), ...(kind === "products" ? { createdAt: row.created_at, updatedAt: row.updated_at } : {}) } : null;
 }
 export function save(db, kind, key, data, version) {
   const old = record(db, kind, key);
@@ -78,7 +78,7 @@ export function save(db, kind, key, data, version) {
   const encoded = JSON.stringify(data);
   if (kind === "products")
     db.prepare(
-      "INSERT INTO products(id,category_id,data) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET category_id=excluded.category_id,data=excluded.data,version=products.version+1",
+      "INSERT INTO products(id,category_id,data,created_at,updated_at) VALUES(?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET category_id=excluded.category_id,data=excluded.data,version=products.version+1,updated_at=CURRENT_TIMESTAMP",
     ).run(key, data.categoryId || null, encoded);
   else if (kind === "categories")
     db.prepare(

@@ -659,6 +659,51 @@ app.set('trust proxy', 1);
     });
     res.json(result);
   });
+  // Explain dependencies before a destructive action so the admin can choose
+  // archive/deactivate without ever touching historical transactions.
+  app.get("/api/admin/content/:kind/:id/references", (req, res) => {
+    const { kind, id: key } = req.params;
+    if (!schemas[kind] || !record(db, kind, key)) fail("This record no longer exists.", 404);
+    const refs = [];
+    if (kind === "products") {
+      const orders = db.prepare("SELECT DISTINCT order_id FROM order_items WHERE product_id=?").all(key);
+      if (orders.length) refs.push({ type: "orders", count: orders.length, description: "Historical order items" });
+      const reviews = db.prepare("SELECT COUNT(*) AS count FROM reviews WHERE product_id=?").get(key).count;
+      if (reviews) refs.push({ type: "reviews", count: reviews, description: "Customer reviews" });
+      const combos = records(db, "combos").filter((c) => c.productIds.includes(key));
+      if (combos.length) refs.push({ type: "combos", count: combos.length, description: "Active or saved combos" });
+      const sections = records(db, "sections").filter((s) => s.productIds.includes(key));
+      if (sections.length) refs.push({ type: "sections", count: sections.length, description: "Homepage sections" });
+    } else if (kind === "categories") {
+      const products = records(db, "products").filter((p) => p.categoryId === key);
+      if (products.length) refs.push({ type: "products", count: products.length, description: "Products in this category" });
+      const children = records(db, "categories").filter((c) => c.parentId === key);
+      if (children.length) refs.push({ type: "categories", count: children.length, description: "Child categories" });
+      const sections = records(db, "sections").filter((s) => s.categoryIds.includes(key));
+      if (sections.length) refs.push({ type: "sections", count: sections.length, description: "Homepage sections" });
+    } else if (kind === "coupons") {
+      const uses = db.prepare("SELECT COUNT(*) AS count FROM coupon_uses WHERE coupon_id=?").get(key).count;
+      if (uses) refs.push({ type: "orders", count: uses, description: "Orders using this coupon" });
+    }
+    res.json({ references: refs, canDelete: refs.length === 0 });
+  });
+  app.post("/api/admin/content/:kind/:id/archive", (req, res) => {
+    const { kind, id: key } = req.params;
+    if (!schemas[kind] || kind === "settings") fail("This resource cannot be archived.");
+    const saved = transaction(db, () => {
+      const current = record(db, kind, key);
+      if (!current) fail("This record no longer exists.", 404);
+      const data = { ...current };
+      if (kind === "products") data.status = "archived";
+      else if (Object.hasOwn(data, "active")) data.active = false;
+      else fail("This record does not support archiving.", 409);
+      delete data.id; delete data.version;
+      const result = save(db, kind, key, data);
+      audit(db, req.user.id, `${kind}.archive`, key);
+      return result;
+    });
+    res.json({ ok: true, record: saved });
+  });
   app.delete("/api/admin/content/:kind/:id", (req, res) => {
     const { kind } = req.params,
       key = req.params.id;

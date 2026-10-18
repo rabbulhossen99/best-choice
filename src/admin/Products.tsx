@@ -131,6 +131,16 @@ export function Products() {
                           variant="outline"
                           className="ml-2"
                           onClick={async () => {
+                            await api(`/admin/content/products/${p.id}/archive`, "POST");
+                            await reload(); await refresh(); notice("Product archived");
+                          }}
+                        >
+                          Archive
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="ml-2"
+                          onClick={async () => {
                             if (!window.confirm("Are you sure you want to delete this product?")) return;
                             try {
                               await api("/admin/content/products/" + p.id, "DELETE");

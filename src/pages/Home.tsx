@@ -197,7 +197,7 @@ function HomeSection({ section: s }: { section: Section }) {
       </section>
     );
   const products = s.productIds.length
-    ? catalog.products.filter((p) => s.productIds.includes(p.id))
+    ? s.productIds.map((id) => catalog.products.find((p) => p.id === id)).filter((p): p is (typeof catalog.products)[number] => !!p)
     : catalog.products.filter((p) => p.featured);
   if (s.type === "packages")
     return (
