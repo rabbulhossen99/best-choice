@@ -33,6 +33,13 @@ export function openDatabase(
   for (const column of ["created_at", "updated_at"])
     try { db.exec(`ALTER TABLE products ADD COLUMN ${column} TEXT`); } catch {}
   db.exec("UPDATE products SET created_at=COALESCE(created_at,CURRENT_TIMESTAMP), updated_at=COALESCE(updated_at,created_at,CURRENT_TIMESTAMP)");
+  // Reviews are historical moderation records. Keep them when a product is
+  // removed by allowing their product reference to become NULL.
+  const reviewInfo = db.prepare("PRAGMA table_info(reviews)").all();
+  if (reviewInfo.some((column) => column.name === "product_id" && column.notnull)) {
+    db.exec("PRAGMA foreign_keys=OFF; BEGIN;");
+    db.exec("ALTER TABLE reviews RENAME TO reviews_legacy; CREATE TABLE reviews (id TEXT PRIMARY KEY, product_id TEXT REFERENCES products(id) ON DELETE SET NULL, user_id TEXT NOT NULL REFERENCES users(id), data TEXT NOT NULL, approved INTEGER NOT NULL DEFAULT 0, UNIQUE(product_id,user_id)); INSERT INTO reviews SELECT * FROM reviews_legacy; DROP TABLE reviews_legacy; COMMIT; PRAGMA foreign_keys=ON;");
+  }
   // An earlier category delete cleared these columns without updating the
   // records; restore them from the stored data so the references are enforced.
   db.exec(`

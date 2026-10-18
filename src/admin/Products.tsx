@@ -171,7 +171,14 @@ export function Products() {
                               await refresh();
                               notice("Product deleted");
                             } catch (e) {
-                              notice((e as Error).message);
+                              const message = (e as Error).message;
+                              if (message.includes("safe references")) {
+                                if (!window.confirm(`${message}\n\nRemove these references and permanently delete the product? Historical orders and reviews will be preserved.`)) return;
+                                try {
+                                  await api(`/admin/content/products/${p.id}?detach=1`, "DELETE");
+                                  await reload(); await refresh(); notice("Product permanently deleted; historical data preserved");
+                                } catch (retry) { notice((retry as Error).message); }
+                              } else notice(message);
                             }
                           }}
                         >

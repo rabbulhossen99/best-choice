@@ -712,21 +712,24 @@ app.set('trust proxy', 1);
     const moved = transaction(db, () => {
       const current = record(db, kind, key);
       if (!current) fail("This record no longer exists.", 404);
-      if (
-        kind === "products" &&
-        records(db, "combos").some((c) => c.productIds.includes(key))
-      )
-        fail("Remove this product from combos first.");
       if (kind === "products") {
-        const orderCount = db.prepare("SELECT COUNT(*) AS count FROM order_items WHERE product_id=?").get(key).count;
-        const reviewCount = db.prepare("SELECT COUNT(*) AS count FROM reviews WHERE product_id=?").get(key).count;
-        const sectionCount = records(db, "sections").filter((s) => s.productIds.includes(key)).length;
-        if (orderCount || reviewCount || sectionCount)
-          fail("Cannot permanently delete this product: " + [
-            orderCount && orderCount + " historical order item(s)",
-            reviewCount && reviewCount + " customer review(s)",
-            sectionCount && sectionCount + " homepage section reference(s)",
-          ].filter(Boolean).join(", ") + ". Archive it to preserve historical data or remove safe references first.", 409);
+        const combos = records(db, "combos").filter((c) => c.productIds.includes(key));
+        const sections = records(db, "sections").filter((s) => s.productIds.includes(key));
+        if ((combos.length || sections.length) && req.query.detach !== "1")
+          fail("This product is referenced by " + [combos.length && combos.length + " combo offer(s)", sections.length && sections.length + " homepage section(s)"].filter(Boolean).join(" and ") + ". Confirm removal of these safe references before deleting.", 409);
+        if (req.query.detach === "1") {
+          for (const combo of combos) {
+            combo.productIds = combo.productIds.filter((id) => id !== key);
+            if (combo.productIds.length) save(db, "combos", combo.id, combo);
+            else db.prepare("DELETE FROM content WHERE kind='combos' AND id=?").run(combo.id);
+          }
+          for (const section of sections) {
+            section.productIds = section.productIds.filter((id) => id !== key);
+            save(db, "sections", section.id, section);
+          }
+        }
+        db.prepare("UPDATE order_items SET product_id=NULL WHERE product_id=?").run(key);
+        db.prepare("UPDATE reviews SET product_id=NULL WHERE product_id=?").run(key);
       }
       let moved = 0;
       if (kind === "categories") {
