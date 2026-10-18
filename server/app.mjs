@@ -717,6 +717,17 @@ app.set('trust proxy', 1);
         records(db, "combos").some((c) => c.productIds.includes(key))
       )
         fail("Remove this product from combos first.");
+      if (kind === "products") {
+        const orderCount = db.prepare("SELECT COUNT(*) AS count FROM order_items WHERE product_id=?").get(key).count;
+        const reviewCount = db.prepare("SELECT COUNT(*) AS count FROM reviews WHERE product_id=?").get(key).count;
+        const sectionCount = records(db, "sections").filter((s) => s.productIds.includes(key)).length;
+        if (orderCount || reviewCount || sectionCount)
+          fail("Cannot permanently delete this product: " + [
+            orderCount && orderCount + " historical order item(s)",
+            reviewCount && reviewCount + " customer review(s)",
+            sectionCount && sectionCount + " homepage section reference(s)",
+          ].filter(Boolean).join(", ") + ". Archive it to preserve historical data or remove safe references first.", 409);
+      }
       let moved = 0;
       if (kind === "categories") {
         // Products move to the category chosen by the administrator, and

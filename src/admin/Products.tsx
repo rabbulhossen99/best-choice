@@ -22,6 +22,7 @@ export function Products() {
     ),
     [query, setQuery] = useState(""),
     [editing, setEditing] = useState<Product | null>(null),
+    [references, setReferences] = useState<Record<string, any[]> | null>(null),
     { refresh, notice } = useStore();
   return (
     <>
@@ -137,6 +138,28 @@ export function Products() {
                         >
                           Archive
                         </Button>
+                        <Button variant="ghost" className="ml-2" onClick={async () => {
+                          try {
+                            const result = await api<{ references: any[] }>(
+                              "/admin/content/products/PRODUCT_ID/references".replace("PRODUCT_ID", p.id),
+                            );
+                            setReferences({ [p.id]: result.references });
+                          } catch (e) {
+                            notice((e as Error).message);
+                          }
+                        }}>
+                          View references
+                        </Button>
+                        {(references?.[p.id] || []).length > 0 && (
+                          <div className="mt-2 w-full rounded-lg bg-muted p-3 text-xs">
+                            {(references?.[p.id] || []).map((ref) => (
+                              <div key={ref.type}>{ref.description}: {ref.count}</div>
+                            ))}
+                            <div className="mt-1 text-muted-foreground">
+                              Historical orders, payments, and customer data are retained.
+                            </div>
+                          </div>
+                        )}
                         <Button
                           variant="outline"
                           className="ml-2"
