@@ -29,7 +29,15 @@ const browserEventSchema = z.object({
 }).strict();
 const orderContextSchema = z.object({ consent: z.boolean().default(false), sourceUrl: z.string().url().max(2000).optional() }).catch({ consent: false });
 
-const key = () => { const raw = process.env.TRACKING_ENCRYPTION_KEY || process.env.COURIER_ENCRYPTION_KEY || ""; if (!/^[a-f0-9]{64}$/i.test(raw)) throw Object.assign(new Error("Configure a 64-character hex TRACKING_ENCRYPTION_KEY."), { status: 503 }); return Buffer.from(raw, "hex"); };
+// The configured value is a 64-character hex encoding of the 32-byte AES key.
+// COURIER_ENCRYPTION_KEY remains a documented legacy fallback for installations
+// that originally shared the encryption secret between these services.
+const key = () => {
+  const raw = String(process.env.TRACKING_ENCRYPTION_KEY || process.env.COURIER_ENCRYPTION_KEY || "").trim();
+  if (!/^[a-f0-9]{64}$/i.test(raw))
+    throw Object.assign(new Error("Tracking encryption is unavailable: set TRACKING_ENCRYPTION_KEY to a 64-character hexadecimal key on the API process."), { status: 503, code: "TRACKING_KEY_INVALID" });
+  return Buffer.from(raw, "hex");
+};
 const encrypt = value => { const iv = randomBytes(12), c = createCipheriv("aes-256-gcm", key(), iv); const data = c.update(JSON.stringify(value), "utf8", "hex") + c.final("hex"); return `${iv.toString("hex")}.${data}.${c.getAuthTag().toString("hex")}`; };
 const decrypt = value => { const [iv,data,tag] = value.split("."), d = createDecipheriv("aes-256-gcm", key(), Buffer.from(iv,"hex")); d.setAuthTag(Buffer.from(tag,"hex")); return JSON.parse(d.update(data,"hex","utf8") + d.final("utf8")); };
 const sha256 = value => createHash("sha256").update(value).digest("hex");
@@ -68,7 +76,16 @@ export function installTracking(db) { db.exec("CREATE TABLE IF NOT EXISTS tracki
 export function trackingService(db, { origin = process.env.APP_ORIGIN || "http://localhost:5173", fetch = globalThis.fetch } = {}) {
   installTracking(db);
   let cache = null;
-  const read = () => { if (cache) return cache; const row = db.prepare("SELECT encrypted FROM tracking_settings WHERE id='store'").get(); return (cache = schema.parse(row ? decrypt(row.encrypted) : {})); };
+  const read = () => {
+    if (cache) return cache;
+    const row = db.prepare("SELECT encrypted FROM tracking_settings WHERE id='store'").get();
+    if (!row) return (cache = schema.parse({}));
+    try { return (cache = schema.parse(decrypt(row.encrypted))); }
+    catch (error) {
+      if (error?.code === "TRACKING_KEY_INVALID") throw error;
+      throw Object.assign(new Error("Tracking settings cannot be decrypted with the configured encryption key. Restore the key used when these settings were saved; existing settings were preserved."), { status: 503, code: "TRACKING_SETTINGS_UNREADABLE" });
+    }
+  };
   const status = value => ({ browserPixel: !!value.pixelId, serverCapi: !!(value.pixelId && value.accessToken && value.serverSide), graphVersion: GRAPH_VERSION });
   const safe = value => ({ ...value, accessToken: "", configured: !!value.accessToken });
   const save = (input, actor) => {
