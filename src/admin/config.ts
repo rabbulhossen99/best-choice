@@ -84,7 +84,7 @@ export const configs: Record<
         ],
       },
       { key: "title", label: "Title" },
-      { key: "subtitle", label: "Subtitle", type: "textarea" },
+      { key: "subtitle", label: "Hero Subtitle", type: "textarea" },
       { key: "image", label: "Banner image", type: "image" },
       { key: "mobileImage", label: "Mobile banner (optional)", type: "image" },
       { key: "banner2Image", label: "Hero Banner 2 image", type: "image" },
@@ -116,7 +116,7 @@ export const configs: Record<
     defaults: {
       type: "hero",
       title: "",
-      subtitle: "",
+      subtitle: "Reliable Medicines & Health Care Products Delivered With Trust.",
       image: "",
       mobileImage: "",
       banner2Image: "",
