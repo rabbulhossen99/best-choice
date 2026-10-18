@@ -3,13 +3,16 @@ import { useState, type ReactNode } from "react";
 import { Menu, Search, ShoppingBag, X, Home as HomeIcon, Grid2X2, UserRound } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { money } from "@/lib/api";
+import { setConsent, useTracking } from "@/lib/tracking";
 import type { Product } from "@/lib/types";
 import { Button } from "./ui/button";
 export function StoreLayout() {
   const { catalog, cart, user } = useStore(),
     [menu, setMenu] = useState(false),
     [query, setQuery] = useState(""),
+    [privacySettings, setPrivacySettings] = useState(false),
     navigate = useNavigate();
+  const tracking = useTracking();
   const settings = catalog.settings;
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -131,6 +134,36 @@ export function StoreLayout() {
             <h3 className="mb-3 font-bold">Payment</h3>
             {settings.codEnabled && <p>Cash on delivery</p>}
             {settings.manualEnabled && <p>Manual mobile payment</p>}
+            <button
+              type="button"
+              className="mt-5 block text-left text-sm text-background/60 underline-offset-4 hover:underline"
+              onClick={() => setPrivacySettings((open) => !open)}
+              aria-expanded={privacySettings}
+            >
+              Privacy settings
+            </button>
+            {privacySettings && (
+              <div className="mt-3 max-w-xs rounded-xl border border-background/20 bg-background/10 p-3 text-sm">
+                <p className="text-background/75">
+                  Choose whether Meta marketing measurement may run in your browser.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    className="border-background/30 bg-transparent text-background hover:bg-background/10 hover:text-background"
+                    onClick={() => setConsent("denied")}
+                  >
+                    Essential only
+                  </Button>
+                  <Button onClick={() => setConsent("granted")}>Allow marketing</Button>
+                </div>
+                {!tracking.pixel && (
+                  <p className="mt-2 text-xs text-background/60">
+                    Marketing measurement is not configured on this store.
+                  </p>
+                )}
+              </div>
+            )}
             <Link className="mt-5 block text-sm text-background/60" to="/admin">
               Store administration
             </Link>
