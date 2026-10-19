@@ -605,7 +605,19 @@ app.set('trust proxy', 1);
         .object({ data: z.unknown(), version: z.number().int().optional() })
         .strict()
         .parse(req.body),
-      data = schemas[kind].parse(envelope.data);
+      // Product reads include database-managed timestamps for display and
+      // cache ordering. Accepting those projections on an update would make
+      // strict resource validation reject an otherwise valid edit, while
+      // persisting them would let clients control server metadata. Remove
+      // only these known immutable fields at the validation boundary.
+      data = schemas[kind].parse(
+        envelope.data && typeof envelope.data === "object"
+          ? (() => {
+              const { createdAt, updatedAt, ...editable } = envelope.data;
+              return editable;
+            })()
+          : envelope.data,
+      );
     const result = transaction(db, () => {
       if (["products", "categories"].includes(kind)) {
         if (records(db, kind).some((p) => p.slug === data.slug && p.id !== key))

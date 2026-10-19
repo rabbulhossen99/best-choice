@@ -39,7 +39,13 @@ export const money = (value: number) =>
     value / 100,
   );
 export function clean<T extends { id?: string; version?: number }>(data: T) {
-  const { id, version, ...rest } = data;
+  // These fields are projections of database-managed metadata. They are
+  // returned by read endpoints but are not part of editable resource data.
+  // Strip them before sending strict update payloads back to the API.
+  const { id, version, createdAt, updatedAt, ...rest } = data as T & {
+    createdAt?: unknown;
+    updatedAt?: unknown;
+  };
   return rest;
 }
 export function download(name: string, content: string, type = "text/csv") {
