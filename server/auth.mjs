@@ -37,10 +37,26 @@ export function sessions(db, production = false) {
             .get(hash(cookie), Date.now())
         : null;
     if (!session) {
-      if (req.path !== "/session")
+      // Storefront tracking configuration is intentionally public: it contains
+      // only the Pixel's public settings. Keep every other API route behind a
+      // session so CSRF and admin authorization remain unchanged.
+      if (
+        req.path !== "/session" &&
+        !(req.method === "GET" && req.path === "/tracking/config")
+      )
         return res
           .status(401)
           .json({ error: "Session expired. Refresh the page." });
+      if (req.method === "GET" && req.path === "/tracking/config") {
+        req.session = {
+          id: null,
+          user_id: null,
+          csrf: null,
+          expires: 0,
+        };
+        req.user = null;
+        return next();
+      }
       const raw = randomBytes(32).toString("hex");
       session = {
         id: hash(raw),

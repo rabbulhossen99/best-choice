@@ -101,6 +101,11 @@ export async function initTracking(user: User | null) {
   try {
     config = await api<Config>("/tracking/config");
   } catch {
+    // Keep the storefront usable, but leave a safe diagnostic so a failed
+    // public-config request is distinguishable from a visitor's denial.
+    console.warn(
+      "Meta Pixel configuration is unavailable; marketing measurement remains disabled.",
+    );
     config = { pixelId: "" };
   }
   if (config.advancedMatching && user) {

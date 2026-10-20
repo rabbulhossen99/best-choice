@@ -16,6 +16,27 @@ export function StoreLayout() {
   const settings = catalog.settings;
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {tracking.needsConsent && tracking.consent === null && (
+        <div
+          role="dialog"
+          aria-label="Marketing measurement choices"
+          className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-xl rounded-2xl border bg-card p-4 shadow-xl"
+        >
+          <p className="font-semibold">Choose your marketing preferences</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Allow Meta marketing measurement, or continue with essential
+            cookies only. You can change this later in Privacy settings.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setConsent("denied")}>
+              Essential only
+            </Button>
+            <Button onClick={() => setConsent("granted")}>
+              Allow marketing
+            </Button>
+          </div>
+        </div>
+      )}
       {settings.announcement && (
         <div className="bg-foreground px-4 py-2 text-center font-bn text-xs font-semibold text-background sm:text-sm">
           {settings.announcement}

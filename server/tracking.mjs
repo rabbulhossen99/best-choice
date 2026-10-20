@@ -122,7 +122,18 @@ export function trackingService(db, { origin = process.env.APP_ORIGIN || "http:/
     const s = read();
     return { event_name: name, event_time: Math.floor(Date.now() / 1000), event_id: eventId, event_source_url: sourceUrl, action_source: "website", user_data: userData(req, customer, s.advancedMatching, sourceUrl), custom_data: s.dynamicProducts ? customData : withoutProducts(customData) };
   };
-  const serverEnabled = () => { try { return status(read()).serverCapi; } catch { return false; } };
+  const serverEnabled = () => {
+    try {
+      return status(read()).serverCapi;
+    } catch (error) {
+      // Configuration/decryption failures must be diagnosable without ever
+      // printing encrypted settings, tokens, keys, or customer data.
+      console.warn(
+        `[tracking] CAPI unavailable (${error?.code || "CONFIGURATION_ERROR"})`,
+      );
+      return false;
+    }
+  };
   async function test(input, req, actor) {
     const settings = read();
     if (!/^\d{5,30}$/.test(settings.pixelId) || !settings.accessToken) throw Object.assign(new Error("Save a valid Meta Pixel ID and access token first."), { status: 400 });

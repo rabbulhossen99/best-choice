@@ -371,12 +371,12 @@ export function updateOrder(db, orderId, input, actor) {
       (key) => input[key] !== undefined && input[key] !== data[key],
     );
     if (data.originalPhone && input.phone !== undefined && input.phone !== data.originalPhone) fail("Original customer phone is locked.", 409);
-    if (["confirmed", "processing", "shipped", "delivered", "completed"].includes(row.status) && (deliveryChanged || input.carrier !== data.carrier || input.trackingNumber !== data.trackingNumber)) fail("Customer and courier details are locked after confirmation.", 409);
     if (
       deliveryChanged &&
       !["pending", "pending-payment", "on-hold", "confirmed", "processing"].includes(row.status)
     )
       fail("Delivery contact details can only be changed before shipping.");
+    if (["shipped", "delivered", "completed"].includes(row.status) && (deliveryChanged || input.carrier !== data.carrier || input.trackingNumber !== data.trackingNumber)) fail("Customer and courier details are locked after confirmation.", 409);
     if (input.paymentStatus === "refunded" && !["paid", "refunded"].includes(data.paymentStatus))
       fail("Only a recorded payment can be marked refunded.");
     if (

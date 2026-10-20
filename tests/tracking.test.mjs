@@ -168,6 +168,25 @@ test("public config exposes only the pixel settings", async (t) => {
   assert.ok(!JSON.stringify(config).includes("EAAB"));
 });
 
+test("public tracking config works without a session cookie and has no secrets", async (t) => {
+  const { admin, root } = await fixture(t);
+  await configure(admin);
+  const response = await fetch_(root + "/api/tracking/config");
+  assert.equal(response.status, 200);
+  const config = await response.json();
+  assert.equal(config.pixelId, "123456789012345");
+  assert.equal(config.serverSide, true);
+  assert.equal(config.accessToken, undefined);
+  assert.equal(config.testCode, undefined);
+  const post = await fetch_(root + "/api/tracking/config", {
+    method: "POST",
+    headers: { origin },
+  });
+  assert.equal(post.status, 401);
+  const adminEndpoint = await fetch_(root + "/api/admin/tracking");
+  assert.equal(adminEndpoint.status, 401);
+});
+
 test("browser events are mirrored to the Conversions API with the same event ID", async (t) => {
   const { admin, guest, meta } = await fixture(t);
   const event = {
@@ -242,9 +261,10 @@ test("purchases are sent from the stored order once, with consent and hashed mat
   await new Promise((r) => setTimeout(r, 50));
   assert.equal(meta.length, 1);
   // Without the consent requirement, purchases are always reported.
-  await configure(admin, { cookieConsent: false, advancedMatching: false });
+  await configure(admin, { cookieConsent: false, advancedMatching: false, testCode: "" });
   await order(guest);
   await until(() => meta.length === 2);
+  assert.equal(meta[1].body.test_event_code, undefined);
   assert.equal(meta[1].body.data[0].user_data.ph, undefined);
 });
 
