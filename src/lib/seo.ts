@@ -11,6 +11,7 @@ const brandName = "Best Choice";
 const brandDescription =
   "Best Choice is a trusted online store for health, wellness and everyday essentials delivered across Bangladesh.";
 const brandImage = "/assets/vitaboost-main.jpg";
+const defaultTitle = `${brandName} | Shop Online in Bangladesh`;
 const defaultDescription =
   document
     .querySelector('meta[name="description"]')
@@ -27,15 +28,27 @@ function setTag(attr: "name" | "property", key: string, content?: string) {
   }
   tag.content = content;
 }
+function setCanonical(href: string) {
+  let link = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if (!link) {
+    link = document.createElement("link");
+    link.rel = "canonical";
+    document.head.appendChild(link);
+  }
+  link.href = href;
+}
 export function applySeo(store: string, meta: PageMeta | null) {
-  const effectiveStore = store === "GadgetHome" ? brandName : store;
+  const effectiveStore = brandName;
   const description = meta?.description?.replace(/\s+/g, " ").trim().slice(0, 300);
-  document.title = meta ? `${meta.title} · ${effectiveStore}` : `${brandName} | Shop Online`;
+  const title = meta ? `${meta.title} · ${effectiveStore}` : defaultTitle;
+  document.title = title;
   setTag("name", "description", description || defaultDescription || brandDescription);
-  setTag("name", "title", meta?.title || `${brandName} | Shop Online`);
+  setTag("name", "title", title);
   setTag("property", "og:type", meta?.type || "website");
-  setTag("property", "og:url", meta ? location.href : location.origin + "/");
-  setTag("property", "og:title", meta?.title || `${brandName} | Shop Online`);
+  const canonical = meta ? location.href : location.origin + "/";
+  setCanonical(canonical);
+  setTag("property", "og:url", canonical);
+  setTag("property", "og:title", title);
   setTag("property", "og:description", description || brandDescription);
   setTag(
     "property",
@@ -44,6 +57,9 @@ export function applySeo(store: string, meta: PageMeta | null) {
   );
   setTag("property", "og:site_name", brandName);
   setTag("name", "twitter:card", "summary_large_image");
+  setTag("name", "twitter:title", title);
+  setTag("name", "twitter:description", description || brandDescription);
+  setTag("name", "twitter:image", meta?.image ? new URL(meta.image, location.origin).href : new URL(brandImage, location.origin).href);
   const price = meta?.price ?? null;
   setTag("property", "product:price:amount", price === null ? undefined : String(price));
   setTag("property", "product:price:currency", price === null ? undefined : "BDT");

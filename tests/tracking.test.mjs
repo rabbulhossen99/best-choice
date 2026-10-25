@@ -29,7 +29,7 @@ async function fixture(t, reply = () => ({ events_received: 1, fbtrace_id: "trac
   const dir = mkdtempSync(join(tmpdir(), "tracking-test-"));
   writeFileSync(
     join(dir, "index.html"),
-    '<html><head><meta name="description" content="Default" /><title>GadgetHome</title></head><body></body></html>',
+    '<html><head><meta name="description" content="Default" /><title>Best Choice</title><link rel="canonical" href="https://bestchoice.shopping/" /></head><body></body></html>',
   );
   const meta = [];
   const fetch = async (url, init) => {
@@ -301,7 +301,7 @@ test("product and category SEO meta data render into the page head", async (t) =
   const categoryHtml = await (await fetch_(`${root}/category/${c.slug}`)).text();
   assert.match(categoryHtml, new RegExp(`<meta property="og:title" content="${c.name}"`));
   const missing = await (await fetch_(`${root}/product/does-not-exist`)).text();
-  assert.match(missing, /<title>Best Choice \| Shop Online<\/title>/);
+  assert.match(missing, /<title>Best Choice \| Shop Online in Bangladesh<\/title>/);
 });
 
 test("combo purchases report each component, and product data can be turned off", async (t) => {

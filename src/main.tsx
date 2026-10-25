@@ -60,7 +60,7 @@ function Scroll() {
     const store = catalog.settings.name;
     if (pathname.startsWith("/admin")) {
       applySeo(store, null);
-      document.title = `Admin · ${store}`;
+      document.title = "Admin · Best Choice";
       return;
     }
     const product = catalog.products.find(

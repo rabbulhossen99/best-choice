@@ -5,6 +5,7 @@ export const BRAND_NAME = "Best Choice";
 export const BRAND_DESCRIPTION =
   "Best Choice is a trusted online store for health, wellness and everyday essentials delivered across Bangladesh.";
 export const BRAND_IMAGE = "/assets/vitaboost-main.jpg";
+export const DEFAULT_TITLE = `${BRAND_NAME} | Shop Online in Bangladesh`;
 
 const escape = (value) =>
   String(value).replace(
@@ -57,10 +58,10 @@ export function renderIndex(db, path, html, origin) {
   } catch {
     meta = null;
   }
-  const store = settings(db).name === "GadgetHome" ? BRAND_NAME : settings(db).name,
+  const store = BRAND_NAME,
     absolute = (url) => (url ? new URL(url, origin).href : ""),
     description = (meta?.description || BRAND_DESCRIPTION).replace(/\s+/g, " ").trim().slice(0, 300),
-    title = meta ? `${meta.title} · ${store}` : `${BRAND_NAME} | Shop Online`;
+    title = meta ? `${meta.title} · ${store}` : DEFAULT_TITLE;
   if (!meta) {
     return html
       .replace(/<title>[^<]*<\/title>/, () => `<title>${escape(title)}</title>`)
@@ -74,7 +75,10 @@ export function renderIndex(db, path, html, origin) {
     ["property", "og:description", description],
     ["property", "og:image", absolute(meta.image)],
     ["property", "og:site_name", store],
-    ["name", "twitter:card", "summary"],
+    ["name", "twitter:card", "summary_large_image"],
+    ["name", "twitter:title", meta.title],
+    ["name", "twitter:description", description],
+    ["name", "twitter:image", absolute(meta.image)],
     ...(meta.price !== null
       ? [
           ["property", "product:price:amount", String(meta.price)],
@@ -98,6 +102,9 @@ export function renderIndex(db, path, html, origin) {
       description
         ? `<meta name="description" content="${escape(description)}" />`
         : tag,
+    )
+    .replace(/<link rel="canonical" href="[^"]*"\s*\/?>/, () =>
+      `<link rel="canonical" href="${escape(new URL(path, origin).href)}" />`,
     )
     .replace("</head>", () => `    ${tags}\n  </head>`);
 }
