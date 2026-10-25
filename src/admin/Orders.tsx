@@ -136,7 +136,10 @@ export function Orders() {
                     role="button"
                     aria-label={`View order ${o.number}`}
                     onClick={(event) => {
-                      if ((event.target as HTMLElement).closest("button,a,input,select,textarea,[role='button']")) return;
+                      const nestedControl = (event.target as HTMLElement).closest(
+                        "button,a,input,select,textarea,[role='button']",
+                      );
+                      if (nestedControl && nestedControl !== event.currentTarget) return;
                       setSelected(o);
                     }}
                     onKeyDown={(event) => {
@@ -164,7 +167,13 @@ export function Orders() {
 
                     <td>{o.courierShipment?.provider || o.carrier || "—"}</td><td>{o.courierShipment?.tracking_id || o.trackingNumber || "—"}</td><td>{o.courierShipment?.courier_status || o.courierShipment?.state || "—"}</td><td>{money(o.total)}</td>
                     <td>
-                      <Button variant="outline" onClick={() => setSelected(o)}>
+                      <Button
+                        variant="outline"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelected(o);
+                        }}
+                      >
                         View order
                       </Button>
                     </td>
