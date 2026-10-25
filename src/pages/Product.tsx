@@ -220,15 +220,12 @@ function ProductDetails({ product: p }: { product: ProductType }) {
                             </span>
                           )}
                         </span>
-                        <span className="mt-1 block text-xs text-muted-foreground">
-                          {savings > 0 && (
-                            <span className="font-semibold text-primary">
-                              Save {money(savings)}{discount ? ` · ${discount}% off` : ""}
-                              {" · "}
-                            </span>
-                          )}
-                          {unavailable ? "Out of stock" : `${variant.stock} in stock`}
-                        </span>
+                        {savings > 0 && (
+                          <span className="mt-1 block text-xs font-semibold text-primary">
+                            Save {money(savings)}
+                            {discount ? ` · ${discount}% off` : ""}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
