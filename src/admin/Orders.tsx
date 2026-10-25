@@ -129,7 +129,24 @@ export function Orders() {
               </thead>
               <tbody>
                 {orders.map((o) => (
-                  <tr key={o.id}>
+                  <tr
+                    key={o.id}
+                    className="cursor-pointer hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`View order ${o.number}`}
+                    onClick={(event) => {
+                      if ((event.target as HTMLElement).closest("button,a,input,select,textarea,[role='button']")) return;
+                      setSelected(o);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelected(o);
+                      }
+                    }}
+                  >
                     <td><strong>{serials.get(o.id)}</strong></td>
                     <td>
                       <strong>{o.number}</strong>

@@ -1,4 +1,4 @@
-# GadgetHome unified commerce
+# Best Choice unified commerce
 
 The active application lives at this folder's root. It integrates the wellness storefront from **health-home-hub-main**, the gallery/package/checkout journey from **product-showcase-main**, and the administration design and management areas from **complete-project**. The three original folders remain untouched as references and are excluded from the active build.
 

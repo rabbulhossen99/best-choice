@@ -1,6 +1,11 @@
 import { records } from "./db.mjs";
 import { settings, publicProduct, categoryVisible } from "./commerce.mjs";
 
+export const BRAND_NAME = "Best Choice";
+export const BRAND_DESCRIPTION =
+  "Best Choice is a trusted online store for health, wellness and everyday essentials delivered across Bangladesh.";
+export const BRAND_IMAGE = "/assets/vitaboost-main.jpg";
+
 const escape = (value) =>
   String(value).replace(
     /[&<>"']/g,
@@ -52,10 +57,15 @@ export function renderIndex(db, path, html, origin) {
   } catch {
     meta = null;
   }
-  if (!meta) return html;
-  const store = settings(db).name,
+  const store = settings(db).name === "GadgetHome" ? BRAND_NAME : settings(db).name,
     absolute = (url) => (url ? new URL(url, origin).href : ""),
-    description = meta.description.replace(/\s+/g, " ").trim().slice(0, 300);
+    description = (meta?.description || BRAND_DESCRIPTION).replace(/\s+/g, " ").trim().slice(0, 300),
+    title = meta ? `${meta.title} · ${store}` : `${BRAND_NAME} | Shop Online`;
+  if (!meta) {
+    return html
+      .replace(/<title>[^<]*<\/title>/, () => `<title>${escape(title)}</title>`)
+      .replace(/<meta name="description" content="[^"]*"\s*\/?\>/, () => `<meta name="description" content="${escape(description)}" />`);
+  }
   const tags = [
     ["name", "title", meta.title],
     ["property", "og:type", meta.type],
@@ -82,7 +92,7 @@ export function renderIndex(db, path, html, origin) {
   return html
     .replace(
       /<title>[^<]*<\/title>/,
-      () => `<title>${escape(`${meta.title} · ${store}`)}</title>`,
+      () => `<title>${escape(title)}</title>`,
     )
     .replace(/<meta name="description" content="[^"]*"\s*\/?>/, (tag) =>
       description

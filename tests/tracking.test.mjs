@@ -301,7 +301,7 @@ test("product and category SEO meta data render into the page head", async (t) =
   const categoryHtml = await (await fetch_(`${root}/category/${c.slug}`)).text();
   assert.match(categoryHtml, new RegExp(`<meta property="og:title" content="${c.name}"`));
   const missing = await (await fetch_(`${root}/product/does-not-exist`)).text();
-  assert.match(missing, /<title>GadgetHome<\/title>/);
+  assert.match(missing, /<title>Best Choice \| Shop Online<\/title>/);
 });
 
 test("combo purchases report each component, and product data can be turned off", async (t) => {

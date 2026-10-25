@@ -217,7 +217,7 @@ export function seed(db) {
       active: true,
     });
     put("settings", "store", {
-      name: "GadgetHome",
+      name: "Best Choice",
       supportEmail: "support@example.com",
       phone: "",
       address: "Bangladesh",

@@ -16,9 +16,17 @@ const configSchema = z.object({
   ...Object.fromEntries(secretNames.map(name => [name, z.string().max(1000).optional()])),
 }).strict();
 function encryptionKey() {
-  const key = process.env.COURIER_ENCRYPTION_KEY || '';
-  if (!/^[a-f0-9]{64}$/i.test(key)) fail('Configure a 64-character hex COURIER_ENCRYPTION_KEY on the server first.', 503);
+  // Courier settings use the dedicated key when present. Older deployments
+  // shipped only TRACKING_ENCRYPTION_KEY and used the same AES-256-GCM
+  // format, so retain that key as a compatibility fallback. Do not fall back
+  // when an explicitly configured courier key is malformed.
+  const dedicated = String(process.env.COURIER_ENCRYPTION_KEY || '').trim();
+  const key = dedicated || String(process.env.TRACKING_ENCRYPTION_KEY || '').trim();
+  if (!/^[a-f0-9]{64}$/i.test(key)) fail('Configure a 64-character hex COURIER_ENCRYPTION_KEY (or the legacy TRACKING_ENCRYPTION_KEY) on the server first.', 503);
   return Buffer.from(key, 'hex');
+}
+export function courierEncryptionReady() {
+  try { encryptionKey(); return true; } catch { return false; }
 }
 function encrypt(provider, value) {
   const iv = randomBytes(12), cipher = createCipheriv('aes-256-gcm', encryptionKey(), iv);
@@ -287,7 +295,7 @@ export function mountCourierAdmin(app, service) {
   ));
   app.get('/api/admin/couriers', (_, res) => res.json({
     steadfast: service.configuration('steadfast'), pathao: service.configuration('pathao'),
-    encryptionReady: /^[a-f0-9]{64}$/i.test(process.env.COURIER_ENCRYPTION_KEY || ''),
+    encryptionReady: courierEncryptionReady(),
   }));
   app.put('/api/admin/couriers/:provider', (req, res) => res.json({ success: true, message: 'Courier settings saved successfully', settings: service.configuration(req.params.provider, req.body) }));
   app.post('/api/admin/couriers/:provider/test', async (req, res) => res.json(await service.test(req.params.provider, req.body)));
