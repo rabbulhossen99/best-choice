@@ -2,6 +2,7 @@ import { useEffect, useState, type MouseEvent } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import {
   ChevronRight,
+  Check,
   Minus,
   Plus,
   ShieldCheck,
@@ -179,6 +180,13 @@ function ProductDetails({ product: p }: { product: ProductType }) {
                   {activeVariants.map((variant) => {
                     const selected = variant.id === v?.id;
                     const unavailable = variant.stock < 1;
+                    const savings =
+                      variant.compareAt && variant.compareAt > variant.price
+                        ? variant.compareAt - variant.price
+                        : 0;
+                    const discount = variant.compareAt && savings
+                      ? Math.round((savings / variant.compareAt) * 100)
+                      : 0;
                     return (
                       <button
                         type="button"
@@ -187,15 +195,38 @@ function ProductDetails({ product: p }: { product: ProductType }) {
                         aria-pressed={selected}
                         onClick={() => setSelectedVariantId(variant.id)}
                         className={cn(
-                          "rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                          "relative rounded-lg border px-3 py-3 text-left text-sm transition-all duration-200",
                           selected
-                            ? "border-primary bg-primary/10 ring-1 ring-primary"
-                            : "border-border hover:bg-muted",
+                            ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary"
+                            : "border-border hover:border-primary/50 hover:bg-muted",
                           unavailable && "cursor-not-allowed opacity-50",
                         )}
                       >
-                        <span className="block font-semibold">{variant.name}</span>
-                        <span className="block text-xs text-muted-foreground">
+                        <span className="flex items-center justify-between gap-2 font-semibold">
+                          <span className="truncate">{variant.name}</span>
+                          {selected && (
+                            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                              <Check size={13} strokeWidth={3} />
+                            </span>
+                          )}
+                        </span>
+                        <span className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                          <span className="text-lg font-bold text-foreground">
+                            {money(variant.price)}
+                          </span>
+                          {variant.compareAt && variant.compareAt > variant.price && (
+                            <span className="text-xs text-muted-foreground line-through">
+                              {money(variant.compareAt)}
+                            </span>
+                          )}
+                        </span>
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          {savings > 0 && (
+                            <span className="font-semibold text-primary">
+                              Save {money(savings)}{discount ? ` · ${discount}% off` : ""}
+                              {" · "}
+                            </span>
+                          )}
                           {unavailable ? "Out of stock" : `${variant.stock} in stock`}
                         </span>
                       </button>
