@@ -18,7 +18,8 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
 
           script: |
-            cd /var/www/gadget-home
-            git pull
-            pnpm install
+            cd /var/www/best-choice
+            git pull --ff-only
+            pnpm install --frozen-lockfile
             pnpm run build
+            pm2 restart best-choice-api --update-env

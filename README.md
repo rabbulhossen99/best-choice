@@ -119,6 +119,6 @@ Build with the pinned lockfile, run the seed and admin setup deliberately, and s
 The originals did not contain working payment gateways, email/SMS delivery, Meta CAPI, Stripe or ad network integrations despite some sample “connected” labels. This application does not claim those services are connected. Automatic payments/refunds, notifications, shipment creation and ad event forwarding require provider credentials, webhook verification and provider-specific integration/testing. Campaigns and Meta fields are planning/metadata tools, not an ad-dispatch service. Email verification and self-service email password recovery are not configured.
 
 Before going live, create your administrator, replace demonstration inventory and policies, configure contact/shipping/payment information, select and configure hosting/HTTPS/backups, verify your real payment procedures and perform a staging purchase/fulfillment check. Automated tests and a successful local build do not establish production readiness for an unspecified hosting/payment environment.
-"# gadget-home" 
+"# best-choice"
 
 

@@ -2,13 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openDatabase, record, records, save } from "../server/db.mjs";
 import { seed } from "../server/seed.mjs";
 import { createApp } from "../server/app.mjs";
 import { passwordHash } from "../server/auth.mjs";
+import { renderIndex } from "../server/seo.mjs";
 
 process.env.TRACKING_ENCRYPTION_KEY = "ab".repeat(32);
 const origin = "http://localhost:5173";
@@ -302,6 +303,24 @@ test("product and category SEO meta data render into the page head", async (t) =
   assert.match(categoryHtml, new RegExp(`<meta property="og:title" content="${c.name}"`));
   const missing = await (await fetch_(`${root}/product/does-not-exist`)).text();
   assert.match(missing, /<title>Best Choice \| Shop Online in Bangladesh<\/title>/);
+});
+
+test("homepage server metadata uses only the Best Choice brand", () => {
+  const db = openDatabase(":memory:");
+  seed(db);
+  const html = renderIndex(
+    db,
+    "/",
+    readFileSync(new URL("../index.html", import.meta.url), "utf8"),
+    "https://bestchoice.shopping",
+  );
+  assert.match(html, /<title>Best Choice \| Shop Online in Bangladesh<\/title>/);
+  assert.match(html, /og:site_name" content="Best Choice"/);
+  assert.match(html, /og:title" content="Best Choice \| Shop Online in Bangladesh"/);
+  assert.match(html, /twitter:title" content="Best Choice \| Shop Online in Bangladesh"/);
+  assert.match(html, /canonical" href="https:\/\/bestchoice\.shopping\//);
+  assert.doesNotMatch(html, /GadgetHome|Gadget Home|gadget-home/i);
+  db.close();
 });
 
 test("combo purchases report each component, and product data can be turned off", async (t) => {
