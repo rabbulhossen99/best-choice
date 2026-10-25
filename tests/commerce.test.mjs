@@ -112,6 +112,30 @@ test("seed is idempotent and catalog exposes dynamic data without targeting", as
   assert.equal(data.products[0].targeting, undefined);
   assert.equal(data.settings.currency, "BDT");
 });
+test("catalog exposes active packages and checkout prices the selected package", async (t) => {
+  const { db, guest } = await fixture(t);
+  const product = record(db, "products", "vitaboost");
+  product.variants.forEach((v) => {
+    v.active = v.id === "double";
+  });
+  product.variants.find((v) => v.id === "double").price = 25900;
+  save(db, "products", product.id, product);
+
+  const catalog = (await guest.call("/catalog")).data;
+  const publicProduct = catalog.products.find((p) => p.id === product.id);
+  assert.deepEqual(
+    publicProduct.variants.map((v) => v.id),
+    ["double"],
+  );
+  const quoted = await guest.call("/quote", "POST", {
+    items: [{ type: "product", productId: product.id, variantId: "double", quantity: 1 }],
+    area: "inside",
+    coupon: "",
+  });
+  assert.equal(quoted.status, 200);
+  assert.equal(quoted.data.lines[0].variantId, "double");
+  assert.equal(quoted.data.lines[0].unitPrice, 25900);
+});
 test("admin APIs reject guests; mutations require CSRF and trusted origin", async (t) => {
   const { guest, admin } = await fixture(t);
   assert.equal((await guest.call("/admin/overview")).status, 403);

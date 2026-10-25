@@ -42,22 +42,29 @@ function ProductDetails({ product: p }: { product: ProductType }) {
   const { data: reviews, reload } = useResource<
     { id: string; name: string; rating: number; comment: string }[]
   >("/products/" + p.id + "/reviews");
-  const v = p.variants[0],
+  const activeVariants = p.variants.filter((variant) => variant.active),
+    [selectedVariantId, setSelectedVariantId] = useState(
+      activeVariants[0]?.id || "",
+    ),
+    v = activeVariants.find((variant) => variant.id === selectedVariantId) ||
+      activeVariants[0],
     category = catalog.categories.find((c) => c.id === p.categoryId),
     { active } = useTracking();
   useEffect(() => {
-    const first = p.variants[0];
-    if (!active || !first) return;
+    if (!active || !v) return;
     track("ViewContent", {
       content_ids: [p.id],
       content_name: p.name,
       content_category: category?.name,
       content_type: "product",
-      contents: [{ id: p.id, quantity: 1, item_price: first.price / 100 }],
-      value: first.price / 100,
+      contents: [{ id: p.id, quantity: 1, item_price: v.price / 100 }],
+      value: v.price / 100,
       currency: "BDT",
     });
-  }, [p.id, active]);
+  }, [p.id, active, v?.id]);
+  useEffect(() => {
+    if (v && quantity > v.stock) setQuantity(Math.max(1, v.stock));
+  }, [v?.id, v?.stock]);
   async function buy(checkout = false) {
     if (!v) return;
     setBusy(true);
@@ -165,12 +172,51 @@ function ProductDetails({ product: p }: { product: ProductType }) {
                 {v?.stock ? `${v.stock} in stock` : "Out of stock"}
               </span>
             </div>
+            {activeVariants.length > 1 && (
+              <fieldset className="mt-5">
+                <legend className="mb-2 text-sm font-bold">Choose package</legend>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {activeVariants.map((variant) => {
+                    const selected = variant.id === v?.id;
+                    const unavailable = variant.stock < 1;
+                    return (
+                      <button
+                        type="button"
+                        key={variant.id}
+                        disabled={unavailable}
+                        aria-pressed={selected}
+                        onClick={() => setSelectedVariantId(variant.id)}
+                        className={cn(
+                          "rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                          selected
+                            ? "border-primary bg-primary/10 ring-1 ring-primary"
+                            : "border-border hover:bg-muted",
+                          unavailable && "cursor-not-allowed opacity-50",
+                        )}
+                      >
+                        <span className="block font-semibold">{variant.name}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {unavailable ? "Out of stock" : `${variant.stock} in stock`}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            )}
             <div className="my-5 flex items-end gap-3 border-y py-3 sm:my-7 sm:py-5">
               <span className="text-3xl font-bold">{money(v?.price || 0)}</span>
               {v?.compareAt && (
-                <span className="text-lg text-muted-foreground line-through">
-                  {money(v.compareAt)}
-                </span>
+                <>
+                  <span className="text-lg text-muted-foreground line-through">
+                    {money(v.compareAt)}
+                  </span>
+                  {v.compareAt > v.price && (
+                    <span className="text-xs font-bold text-primary">
+                      {Math.round((1 - v.price / v.compareAt) * 100)}% off
+                    </span>
+                  )}
+                </>
               )}
             </div>
             <div className="mt-4 grid grid-cols-[auto_1fr] gap-2 sm:mt-6 sm:gap-3">
